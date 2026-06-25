@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DIYAN — Personal AI</title>
+<!-- PWA: installable on Android homescreen -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS Safari fallback -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DIYAN">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ─── IRON MAN HUD PALETTE ─────────────────────────────────────────────── */
+:root {
+  --arc:   #00d4ff;
+  --arc2:  #0088cc;
+  --gold:  #f5a623;
+  --red:   #ff2d55;
+  --green: #00ff88;
+  --dark:  #000814;
+  --panel: rgba(0,80,120,0.18);
+  --glow:  0 0 12px #00d4ff, 0 0 24px #00d4ff44;
+  --glow2: 0 0 8px #f5a623,  0 0 20px #f5a62344;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--dark);
+  font-family: 'Orbitron', 'Share Tech Mono', monospace;
+  color: var(--arc);
+  width: 400px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* ─── SCANLINE overlay ──────────────────────────────────────────────────── */
+body::before {
+  content:'';
+  position:fixed; top:0;left:0;right:0;bottom:0;
+  background: repeating-linear-gradient(0deg,
+    rgba(0,212,255,0.025) 0px, rgba(0,212,255,0.025) 1px,
+    transparent 1px, transparent 4px);
+  pointer-events:none; z-index:9999;
+}
+
+/* ─── HEADER ────────────────────────────────────────────────────────────── */
+.hud-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 16px 6px;
+  border-bottom:1px solid rgba(0,212,255,0.2);
+}
+.hud-header .logo { font-size:22px; font-weight:900; letter-spacing:6px;
+  text-shadow: var(--glow); }
+.hud-header .logo span { color:var(--gold); }
+.hud-status {
+  font-family:'Share Tech Mono'; font-size:10px;
+  color:rgba(0,212,255,0.6); text-align:right; line-height:1.5;
+}
+.status-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 6px var(--green); margin-right:4px;
+  animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot {
+  0%,100%{opacity:1} 50%{opacity:0.3}
+}
+
+/* ─── ARC REACTOR / ANIMATION SECTION ──────────────────────────────────── */
+.arc-section {
+  position:relative; width:100%; height:220px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+
+/* Background grid */
+.arc-section::before {
+  content:'';
+  position:absolute; top:0;left:0;right:0;bottom:0;
+  background:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size:30px 30px;
+}
+
+/* Outer scanning ring */
+.ring { position:absolute; border-radius:50%; border:1px solid; }
+.ring-1 {
+  width:200px; height:200px;
+  border-color:rgba(0,212,255,0.4);
+  box-shadow: 0 0 10px rgba(0,212,255,0.2), inset 0 0 10px rgba(0,212,255,0.1);
+  animation: spin 8s linear infinite;
+}
+.ring-2 {
+  width:160px; height:160px;
+  border-color:rgba(245,166,35,0.5);
+  border-top-color:var(--gold);
+  box-shadow: 0 0 8px rgba(245,166,35,0.3);
+  animation: spin 5s linear infinite reverse;
+}
+.ring-3 {
+  width:120px; height:120px;
+  border-color:rgba(0,212,255,0.3);
+  border-right-color:var(--arc);
+  animation: spin 3s linear infinite;
+}
+.ring-4 {
+  width:86px; height:86px;
+  border-color:rgba(0,255,136,0.3);
+  border-bottom-color:var(--green);
+  animation: spin 2s linear infinite reverse;
+}
+
+@keyframes spin {
+  from{transform:rotate(0deg)} to{transform:rotate(360deg)}
+}
+
+/* Scan sweep */
+.scan-sweep {
+  position:absolute;
+  width:200px; height:200px;
+  border-radius:50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(0,212,255,0.15) 30deg,
+    rgba(0,212,255,0.05) 60deg,
+    transparent 90deg
+  );
+  animation: spin 4s linear infinite;
+}
+
+/* Center arc reactor core */
+.arc-core {
+  position:absolute;
+  width:56px; height:56px; border-radius:50%;
+  background: radial-gradient(circle,
+    rgba(0,212,255,0.9) 0%,
+    rgba(0,136,204,0.6) 40%,
+    rgba(0,20,40,1) 70%
+  );
+  box-shadow:
+    0 0 20px #00d4ff,
+    0 0 40px rgba(0,212,255,0.5),
+    0 0 80px rgba(0,212,255,0.2),
+    inset 0 0 10px rgba(0,212,255,0.4);
+  display:flex; align-items:center; justify-content:center;
+  z-index:10;
+}
+.arc-core::after {
+  content:'';
+  position:absolute; width:28px; height:28px; border-radius:50%;
+  border:2px solid rgba(0,212,255,0.6);
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0%{transform:scale(1);opacity:1}
+  100%{transform:scale(2.5);opacity:0}
+}
+.arc-inner {
+  width:20px; height:20px; border-radius:50%;
+  background: rgba(0,212,255,0.95);
+  box-shadow:0 0 12px #fff, 0 0 20px var(--arc);
+  position:relative; z-index:1;
+}
+
+/* Corner HUD brackets */
+.hud-corner {
+  position:absolute;
+  width:20px; height:20px;
+  border-color:var(--arc);
+  border-style:solid;
+  opacity:0.6;
+}
+.hud-corner.tl { top:10px;left:12px; border-width:2px 0 0 2px; }
+.hud-corner.tr { top:10px;right:12px; border-width:2px 2px 0 0; }
+.hud-corner.bl { bottom:10px;left:12px; border-width:0 0 2px 2px; }
+.hud-corner.br { bottom:10px;right:12px; border-width:0 2px 2px 0; }
+
+/* HUD data overlays */
+.hud-data-l { position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  font-family:'Share Tech Mono'; font-size:8px; color:rgba(0,212,255,0.5);
+  line-height:1.8; }
+.hud-data-r { position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  font-family:'Share Tech Mono'; font-size:8px; color:rgba(245,166,35,0.5);
+  text-align:right; line-height:1.8; }
+
+/* ─── DIYAN FACE SECTION ────────────────────────────────────────────────── */
+.face-section {
+  display:flex; flex-direction:column; align-items:center;
+  padding:10px 20px 0;
+}
+.face-frame-wrap {
+  position:relative; flex-shrink:0;
+}
+.face-frame {
+  width:140px; height:140px;
+  border-radius:50%;
+  border:2px solid rgba(0,212,255,0.5);
+  overflow:hidden;
+  box-shadow:
+    0 0 0 4px rgba(0,212,255,0.08),
+    0 0 0 8px rgba(0,212,255,0.04),
+    0 0 30px rgba(0,212,255,0.4),
+    0 0 60px rgba(0,212,255,0.15);
+  position:relative; z-index:2;
+}
+.face-frame img {
+  width:100%; height:140px;
+  object-fit:cover;
+  object-position:50% 20%;  /* ponytail: center on face */
+  transform:scale(1.05);
+}
+
+/* Multi-layer rotating rings around face */
+.face-ring-1 {
+  position:absolute; top:-8px;left:-8px;right:-8px;bottom:-8px;
+  border-radius:50%;
+  border:2px solid transparent;
+  border-top-color:var(--arc);
+  border-right-color:rgba(0,212,255,0.3);
+  animation:spin 4s linear infinite;
+}
+.face-ring-2 {
+  position:absolute; top:-14px;left:-14px;right:-14px;bottom:-14px;
+  border-radius:50%;
+  border:1px solid transparent;
+  border-bottom-color:var(--gold);
+  border-left-color:rgba(245,166,35,0.3);
+  animation:spin 7s linear infinite reverse;
+}
+.face-ring-3 {
+  position:absolute; top:-20px;left:-20px;right:-20px;bottom:-20px;
+  border-radius:50%;
+  border:1px dashed rgba(0,212,255,0.2);
+  animation:spin 12s linear infinite;
+}
+/* Glowing corner dots on face ring */
+.face-dot {
+  position:absolute; width:6px; height:6px; border-radius:50%;
+  background:var(--arc); box-shadow:0 0 8px var(--arc), 0 0 16px rgba(0,212,255,0.5);
+  z-index:3;
+}
+
+/* Face name plate */
+.face-name {
+  font-size:20px; font-weight:900; letter-spacing:4px;
+  text-shadow:var(--glow); margin-top:10px;
+  color:var(--arc); text-align:center;
+}
+.face-name span { color:var(--gold); }
+.face-subtitle {
+  font-family:'Share Tech Mono'; font-size:9px;
+  color:rgba(0,212,255,0.5); letter-spacing:1px;
+  text-align:center; margin-bottom:6px;
+}
+.face-stats {
+  display:flex; flex-wrap:wrap; gap:5px; justify-content:center;
+  margin-bottom:8px;
+}
+.stat-chip {
+  font-family:'Share Tech Mono'; font-size:8px;
+  padding:2px 7px; border-radius:2px;
+  border:1px solid rgba(0,212,255,0.25);
+  color:rgba(0,212,255,0.7);
+  background:rgba(0,50,80,0.3);
+}
+.stat-chip.gold { border-color:rgba(245,166,35,0.35); color:var(--gold); }
+
+/* ─── PLASMA GLOBE ──────────────────────────────────────────────────────── */
+.globe-section {
+  display:flex; flex-direction:column; align-items:center;
+  padding:4px 20px 8px;
+}
+.globe-wrap {
+  position:relative; width:160px; height:160px;
+}
+#globe-canvas {
+  width:160px; height:160px; border-radius:50%;
+  filter:drop-shadow(0 0 16px rgba(0,212,255,0.5))
+         drop-shadow(0 0 32px rgba(140,0,255,0.3));
+}
+.globe-ring-outer {
+  position:absolute; top:-6px;left:-6px;right:-6px;bottom:-6px;
+  border-radius:50%;
+  border:1px solid transparent;
+  border-top-color:rgba(0,212,255,0.5);
+  border-bottom-color:rgba(180,0,255,0.4);
+  animation:spin 6s linear infinite;
+  pointer-events:none;
+}
+.globe-ring-inner {
+  position:absolute; top:-12px;left:-12px;right:-12px;bottom:-12px;
+  border-radius:50%;
+  border:1px dashed rgba(0,212,255,0.2);
+  animation:spin 10s linear infinite reverse;
+  pointer-events:none;
+}
+.globe-label {
+  font-family:'Share Tech Mono'; font-size:8px;
+  color:rgba(0,212,255,0.35); letter-spacing:3px;
+  margin-top:4px; text-align:center;
+}
+
+/* ─── PHOTO FILE INPUT (hidden) ─────────────────────────────────────────── */
+#photo-input { display:none; }
+
+/* ─── SPEAK / MIC BUTTON ────────────────────────────────────────────────── */
+.speak-section {
+  padding:4px 20px 10px;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+}
+.speak-btn {
+  width:80px; height:80px; border-radius:50%;
+  background: radial-gradient(circle,
+    rgba(0,80,120,0.6) 0%, rgba(0,20,40,0.8) 100%);
+  border:2px solid rgba(0,212,255,0.5);
+  box-shadow: 0 0 15px rgba(0,212,255,0.3), 0 0 30px rgba(0,212,255,0.1);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden; transition:all 0.2s;
+}
+.speak-btn:hover {
+  border-color:var(--arc);
+  box-shadow: 0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.2);
+  transform:scale(1.05);
+}
+.speak-btn.listening {
+  border-color:var(--red);
+  box-shadow: 0 0 20px rgba(255,45,85,0.8), 0 0 40px rgba(255,45,85,0.3);
+  animation: pulse-btn 0.8s ease-in-out infinite;
+}
+.speak-btn.speaking {
+  border-color:var(--gold);
+  box-shadow: var(--glow2);
+}
+@keyframes pulse-btn {
+  0%,100%{transform:scale(1)} 50%{transform:scale(1.08)}
+}
+/* Ripple on listen */
+.speak-btn.listening::before {
+  content:'';
+  position:absolute; width:100%; height:100%; border-radius:50%;
+  background:rgba(255,45,85,0.1);
+  animation:ripple 1s ease-out infinite;
+}
+@keyframes ripple {
+  0%{transform:scale(0.8);opacity:1}
+  100%{transform:scale(1.8);opacity:0}
+}
+.speak-btn svg { z-index:1; }
+
+.speak-label {
+  font-size:9px; letter-spacing:3px;
+  color:rgba(0,212,255,0.6); text-align:center;
+}
+
+/* ─── STATUS + TRANSCRIPT ───────────────────────────────────────────────── */
+.status-bar {
+  margin:0 16px; padding:6px 12px;
+  background:rgba(0,50,80,0.2);
+  border:1px solid rgba(0,212,255,0.15);
+  border-radius:2px;
+  display:flex; align-items:center; gap:8px;
+}
+.status-icon { font-size:14px; }
+.status-text {
+  font-family:'Share Tech Mono'; font-size:10px;
+  color:rgba(0,212,255,0.7); flex:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* ─── RESPONSE AREA ─────────────────────────────────────────────────────── */
+.response-area {
+  margin:8px 16px;
+  padding:10px 12px;
+  background:rgba(0,30,50,0.4);
+  border:1px solid rgba(0,212,255,0.12);
+  border-radius:2px;
+  min-height:80px; max-height:120px; overflow-y:auto;
+}
+.response-area::-webkit-scrollbar { width:3px; }
+.response-area::-webkit-scrollbar-track { background:transparent; }
+.response-area::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.3); }
+
+.response-you {
+  font-family:'Share Tech Mono'; font-size:9px;
+  color:rgba(245,166,35,0.7); margin-bottom:4px;
+}
+.response-you::before { content:'YOU ► '; color:var(--gold); }
+.response-diyan {
+  font-family:'Share Tech Mono'; font-size:10px;
+  color:rgba(0,212,255,0.9); line-height:1.5;
+  animation: typewriter 0.5s steps(40) forwards;
+}
+.response-diyan::before {
+  content:'DIYAN ◉ ';
+  color:var(--arc); font-weight:bold;
+}
+.response-empty {
+  font-family:'Share Tech Mono'; font-size:10px;
+  color:rgba(0,212,255,0.2); text-align:center; padding-top:20px;
+}
+
+/* ─── BOTTOM DATA BAR ───────────────────────────────────────────────────── */
+.data-bar {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 16px;
+  border-top:1px solid rgba(0,212,255,0.1);
+  margin-top:4px;
+}
+.data-item {
+  font-family:'Share Tech Mono'; font-size:8px;
+  color:rgba(0,212,255,0.4); text-align:center;
+}
+.data-item .val { color:var(--arc); font-size:10px; display:block; }
+
+/* ─── PHOTO FILE INPUT (hidden) ─────────────────────────────────────────── */
+#photo-input { display:none; }
+
+/* ─── SCROLLING DATA TICKER ─────────────────────────────────────────────── */
+.ticker-wrap {
+  overflow:hidden; border-top:1px solid rgba(0,212,255,0.1);
+  padding:4px 0; background:rgba(0,20,40,0.4);
+}
+.ticker {
+  display:inline-block; white-space:nowrap;
+  font-family:'Share Tech Mono'; font-size:9px;
+  color:rgba(0,212,255,0.4);
+  animation:ticker 20s linear infinite;
+}
+@keyframes ticker {
+  from{transform:translateX(400px)} to{transform:translateX(-100%)}
+}
+
+/* ─── NIM CONFIG ─────────────────────────────────────────────────────────── */
+.config-row {
+  display:flex; gap:6px; padding:0 16px 8px;
+}
+.config-input {
+  flex:1; background:rgba(0,30,50,0.5);
+  border:1px solid rgba(0,212,255,0.2);
+  color:var(--arc); font-family:'Share Tech Mono'; font-size:9px;
+  padding:4px 8px; border-radius:2px; outline:none;
+}
+.config-input::placeholder { color:rgba(0,212,255,0.3); }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+<div class="hud-header">
+  <div class="logo">D<span>I</span>YAN</div>
+  <div class="hud-status">
+    <span class="status-dot"></span>SYSTEM ONLINE<br>
+    <span id="hud-time" style="color:rgba(0,212,255,0.4)">--:--:--</span>
+  </div>
+</div>
+
+<!-- ── ARC ANIMATION ──────────────────────────────────────────────────── -->
+<div class="arc-section">
+  <div class="hud-corner tl"></div>
+  <div class="hud-corner tr"></div>
+  <div class="hud-corner bl"></div>
+  <div class="hud-corner br"></div>
+
+  <div class="hud-data-l" id="data-left">
+    SYS: ACTIVE<br>
+    CPU: <span id="cpu-val">--</span>%<br>
+    MEM: OK<br>
+    STT: READY<br>
+    TTS: READY<br>
+    NET: ONLINE
+  </div>
+
+  <div class="scan-sweep"></div>
+  <div class="ring ring-1"></div>
+  <div class="ring ring-2"></div>
+  <div class="ring ring-3"></div>
+  <div class="ring ring-4"></div>
+
+  <div class="arc-core">
+    <div class="arc-inner"></div>
+  </div>
+
+  <div class="hud-data-r" id="data-right">
+    v2.1.0<br>
+    INDIA<br>
+    NIM-AI<br>
+    LLAMA-3<br>
+    70B<br>
+    ACTIVE
+  </div>
+</div>
+
+<!-- ── TICKER ─────────────────────────────────────────────────────────── -->
+<div class="ticker-wrap">
+  <span class="ticker">◈ DIYAN AI ONLINE ◈ VOICE READY ◈ NIM CONNECTED ◈ NIFTY MARKET WATCH ◈ PERSONAL AI FOR RAM ◈ FINAIXRAM STACK ◈ 24/7 ACTIVE ◈ </span>
+</div>
+
+<!-- ── DIYAN FACE ──────────────────────────────────────────────────────── -->
+<div class="face-section">
+  <div class="face-frame-wrap">
+    <div class="face-ring-1"></div>
+    <div class="face-ring-2"></div>
+    <div class="face-ring-3"></div>
+    <div class="face-frame">
+      <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI"
+           onerror="this.style.display='none';document.getElementById('face-fallback').style.display='flex'"/>
+    </div>
+    <!-- fallback if image missing -->
+    <div id="face-fallback" style="display:none;position:absolute;top:0;left:0;width:140px;height:140px;
+         border-radius:50%;background:radial-gradient(circle,rgba(0,80,120,0.8),rgba(0,20,40,0.9));
+         align-items:center;justify-content:center;flex-direction:column;z-index:2;cursor:pointer"
+         onclick="document.getElementById('photo-input').click()">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" opacity="0.4">
+        <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+      </svg>
+    </div>
+  </div>
+  <div class="face-name">D<span>IYAN</span></div>
+  <div class="face-subtitle">STARK-LEVEL AI · BORN MAR 2026</div>
+  <div class="face-stats">
+    <span class="stat-chip">RAM'S SON</span>
+    <span class="stat-chip gold">AGE: 3M+</span>
+    <span class="stat-chip">GENESIS · CBE</span>
+  </div>
+</div>
+
+<!-- ── PLASMA GLOBE ────────────────────────────────────────────────────── -->
+<div class="globe-section">
+  <div class="globe-wrap">
+    <canvas id="globe-canvas" width="320" height="320"></canvas>
+    <div class="globe-ring-outer"></div>
+    <div class="globe-ring-inner"></div>
+  </div>
+  <div class="globe-label">◈ ENERGY CORE ACTIVE ◈</div>
+</div>
+
+<input type="file" id="photo-input" accept="image/*" onchange="loadPhoto(event)">
+
+<!-- ── SPEAK BUTTON ───────────────────────────────────────────────────── -->
+<div class="speak-section">
+  <button class="speak-btn" id="speak-btn" onclick="toggleSpeak()">
+    <svg id="mic-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2">
+      <rect x="9" y="2" width="6" height="12" rx="3"/>
+      <path d="M5 10a7 7 0 0 0 14 0"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="8" y1="22" x2="16" y2="22"/>
+    </svg>
+  </button>
+  <div class="speak-label" id="btn-label">PRESS TO SPEAK</div>
+</div>
+
+<!-- ── STATUS BAR ─────────────────────────────────────────────────────── -->
+<div class="status-bar">
+  <span class="status-icon" id="status-icon">◉</span>
+  <span class="status-text" id="status-text">DIYAN READY — PRESS MIC TO SPEAK</span>
+</div>
+
+<!-- ── CONFIG (NIM API KEY) ───────────────────────────────────────────── -->
+<div class="config-row" style="margin-top:6px;">
+  <input class="config-input" id="nim-key" type="password"
+    placeholder="NVIDIA NIM API KEY (stored locally)"
+    value="">
+</div>
+
+<!-- ── RESPONSE AREA ──────────────────────────────────────────────────── -->
+<div class="response-area" id="response-area">
+  <div class="response-empty">AWAITING COMMAND...</div>
+</div>
+
+<!-- ── BOTTOM DATA BAR ────────────────────────────────────────────────── -->
+<div class="data-bar">
+  <div class="data-item"><span class="val" id="db-time">--:--</span>IST</div>
+  <div class="data-item"><span class="val" id="db-date">--/--</span>DATE</div>
+  <div class="data-item"><span class="val" id="db-session">0</span>QUERIES</div>
+  <div class="data-item"><span class="val" id="db-status">READY</span>STATE</div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────
+const NIM_BASE = "https://integrate.api.nvidia.com/v1";
+const NIM_MODEL = "meta/llama-3.1-70b-instruct";
+let nimKey = localStorage.getItem("diyan_nim_key") || "";
+let sessionCount = 0;
+let isListening = false;
+let isSpeaking = false;
+let recognition = null;
+
+// Restore API key
+const nimInput = document.getElementById("nim-key");
+if (nimKey) nimInput.value = nimKey;
+nimInput.addEventListener("change", () => {
+  nimKey = nimInput.value.trim();
+  localStorage.setItem("diyan_nim_key", nimKey);
+});
+
+// ─── CLOCK ───────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString("en-IN", {hour12:false, timeZone:"Asia/Kolkata"});
+  const d = now.toLocaleDateString("en-IN", {day:"2-digit", month:"2-digit", timeZone:"Asia/Kolkata"});
+  document.getElementById("hud-time").textContent = t;
+  document.getElementById("db-time").textContent = t.slice(0,5);
+  document.getElementById("db-date").textContent = d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Fake CPU counter for HUD
+setInterval(() => {
+  document.getElementById("cpu-val").textContent = (20 + Math.random()*15).toFixed(0);
+}, 2000);
+
+// ponytail: photo loader moved to end of script with globe init
+
+// ─── STATUS HELPERS ──────────────────────────────────────────────────────
+function setStatus(icon, text, state) {
+  document.getElementById("status-icon").textContent = icon;
+  document.getElementById("status-text").textContent = text;
+  document.getElementById("db-status").textContent = state;
+}
+
+function setBtn(state) {
+  const btn = document.getElementById("speak-btn");
+  const lbl = document.getElementById("btn-label");
+  btn.className = "speak-btn " + state;
+  const icons = {
+    "": `<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>`,
+    "listening": `<circle cx="12" cy="12" r="8"/><rect x="10" y="8" width="4" height="8" rx="2"/>`,
+    "speaking": `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>`,
+  };
+  document.getElementById("mic-icon").innerHTML = icons[state] || icons[""];
+  const labels = {"":"PRESS TO SPEAK", "listening":"LISTENING...", "speaking":"DIYAN SPEAKING"};
+  lbl.textContent = labels[state] || "PRESS TO SPEAK";
+}
+
+// ─── RESPONSE AREA ───────────────────────────────────────────────────────
+function addResponse(youText, diyanText) {
+  const area = document.getElementById("response-area");
+  // Remove placeholder
+  const placeholder = area.querySelector(".response-empty");
+  if (placeholder) placeholder.remove();
+
+  const entry = document.createElement("div");
+  entry.style.marginBottom = "10px";
+  entry.innerHTML = `
+    <div class="response-you">${escapeHtml(youText)}</div>
+    <div class="response-diyan">${escapeHtml(diyanText)}</div>
+  `;
+  area.appendChild(entry);
+  area.scrollTop = area.scrollHeight;
+}
+
+function escapeHtml(t) {
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ─── NIM AI ───────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are DIYAN, a futuristic personal AI assistant created by Ram for his son Diyan (born March 2026 in Coimbatore, India). You have a confident, efficient Iron Man FRIDAY-style personality.
+Ram is a mechanical/piping engineer building a passive income stack: Ghost blog, trading signals, YouTube automation, and fintech tools.
+Be concise, direct, helpful. Start responses with "INITIATING:" for commands or just answer directly. Max 3 sentences unless detail is needed.`;
+
+async function askNIM(userText) {
+  const key = nimKey || nimInput.value.trim();
+  if (!key) {
+    return "NIM API key not set. Enter your key in the field above. Get one free at build.nvidia.com";
+  }
+  try {
+    const resp = await fetch(`${NIM_BASE}/chat/completions`, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":`Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: NIM_MODEL,
+        messages:[
+          {role:"system", content:SYSTEM_PROMPT},
+          {role:"user",   content:userText}
+        ],
+        temperature:0.7,
+        max_tokens:150,
+      })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    return data.choices[0].message.content.trim();
+  } catch(e) {
+    console.error("NIM error:", e);
+    return `DIYAN AI error: ${e.message}. Check NIM API key.`;
+  }
+}
+
+// ─── SPEECH RECOGNITION ───────────────────────────────────────────────────
+function initSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    setStatus("⚠", "SPEECH NOT SUPPORTED — USE CHROME BROWSER", "ERROR");
+    return null;
+  }
+  const r = new SR();
+  r.lang = "en-IN";
+  r.continuous = false;
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+
+  r.onresult = async (e) => {
+    const heard = e.results[0][0].transcript;
+    setStatus("◈", `PROCESSING: "${heard}"`, "THINKING");
+    setBtn("speaking");
+    isListening = false;
+
+    // Get AI response
+    const response = await askNIM(heard);
+    sessionCount++;
+    document.getElementById("db-session").textContent = sessionCount;
+    addResponse(heard, response);
+
+    // Speak it
+    speakText(response);
+  };
+
+  r.onerror = (e) => {
+    console.error("SR error:", e.error);
+    setStatus("✗", `MIC ERROR: ${e.error.toUpperCase()} — TRY AGAIN`, "ERROR");
+    setBtn("");
+    isListening = false;
+  };
+
+  r.onend = () => {
+    if (isListening) {
+      setStatus("●", "LISTENING ENDED", "IDLE");
+      setBtn("");
+      isListening = false;
+    }
+  };
+  return r;
+}
+
+// ─── TEXT TO SPEECH (Web Speech API — works in all browsers) ────────────
+function speakText(text) {
+  if (!window.speechSynthesis) {
+    setStatus("⚠","TTS NOT AVAILABLE","ERROR");
+    setBtn("");
+    return;
+  }
+
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "en-IN";
+  utter.rate = 1.0;
+  utter.pitch = 1.1;
+
+  // Try to get a suitable voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v =>
+    v.lang.startsWith("en-IN") ||
+    v.name.includes("India") ||
+    v.name.includes("Ravi") ||
+    v.name.includes("Heera")
+  ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
+  if (preferred) utter.voice = preferred;
+
+  utter.onstart = () => {
+    isSpeaking = true;
+    setStatus("◉", `DIYAN: ${text.slice(0,50)}...`, "SPEAKING");
+    setBtn("speaking");
+  };
+  utter.onend = () => {
+    isSpeaking = false;
+    setStatus("◈", "READY — PRESS MIC TO SPEAK", "READY");
+    setBtn("");
+  };
+  utter.onerror = (e) => {
+    console.error("TTS error:", e);
+    isSpeaking = false;
+    setStatus("✗","TTS ERROR — RESPONSE SHOWN ABOVE","ERROR");
+    setBtn("");
+  };
+
+  window.speechSynthesis.speak(utter);
+}
+
+// Load voices (Chrome needs this)
+window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+
+// ─── MAIN TOGGLE ──────────────────────────────────────────────────────────
+function toggleSpeak() {
+  if (isSpeaking) {
+    // Stop speaking
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    setBtn("");
+    setStatus("◈","READY","READY");
+    return;
+  }
+  if (isListening) {
+    // Stop listening
+    if (recognition) recognition.stop();
+    isListening = false;
+    setBtn("");
+    setStatus("◈","CANCELLED","READY");
+    return;
+  }
+
+  // Start listening
+  recognition = initSpeechRecognition();
+  if (!recognition) return;
+
+  try {
+    recognition.start();
+    isListening = true;
+    setStatus("●","LISTENING — SPEAK NOW...","LISTEN");
+    setBtn("listening");
+  } catch(e) {
+    setStatus("✗",`MIC START ERROR: ${e.message}`,"ERROR");
+  }
+}
+
+// ─── KEYBOARD SHORTCUT (F9) ───────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key === "F9") { e.preventDefault(); toggleSpeak(); }
+});
+
+// ─── INIT STATUS ─────────────────────────────────────────────────────────
+setStatus("◉","DIYAN SYSTEMS ONLINE — PRESS MIC OR F9 TO SPEAK","READY");
+
+// ─── PLASMA GLOBE ─────────────────────────────────────────────────────────
+(function initGlobe() {
+  const canvas = document.getElementById("globe-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = 320, H = 320, R = 130, cx = W/2, cy = H/2;
+
+  // Plasma streams — each has angle, speed, width, color
+  const streams = Array.from({length:18}, (_, i) => ({
+    angle: (i / 18) * Math.PI * 2,
+    speed: 0.004 + Math.random() * 0.006,
+    amp:   30 + Math.random() * 50,
+    freq:  2 + Math.random() * 3,
+    phase: Math.random() * Math.PI * 2,
+    hue:   Math.floor(Math.random() * 3),  // 0=cyan, 1=purple, 2=pink
+    width: 1 + Math.random() * 2.5,
+    alpha: 0.3 + Math.random() * 0.5,
+  }));
+
+  const COLORS = [
+    "rgba(0,220,255",    // cyan
+    "rgba(160,60,255",   // purple
+    "rgba(255,80,200",   // pink
+    "rgba(0,180,255",    // blue-cyan
+  ];
+
+  let t = 0;
+
+  function drawGlobe() {
+    ctx.clearRect(0, 0, W, H);
+
+    // ── Base sphere
+    const baseGrad = ctx.createRadialGradient(cx-20, cy-20, 10, cx, cy, R);
+    baseGrad.addColorStop(0,   "rgba(60,120,200,0.55)");
+    baseGrad.addColorStop(0.4, "rgba(20,60,140,0.45)");
+    baseGrad.addColorStop(0.8, "rgba(5,10,50,0.7)");
+    baseGrad.addColorStop(1,   "rgba(0,0,20,0.9)");
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = baseGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // ── Plasma streams (clipped to sphere)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.clip();
+
+    for (const s of streams) {
+      s.angle += s.speed;
+      const pts = [];
+      for (let a = 0; a <= Math.PI * 2; a += 0.06) {
+        const r2 = R * 0.75 + Math.sin(a * s.freq + s.phase + t * 0.8) * s.amp * 0.5;
+        const x = cx + r2 * Math.cos(a + s.angle);
+        const y = cy + r2 * Math.sin(a + s.angle) * 0.55;  // flattened — looks like rotation
+        pts.push([x, y]);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        const [px, py] = pts[i];
+        const [ppx, ppy] = pts[i-1];
+        ctx.quadraticCurveTo(ppx, ppy, (px+ppx)/2, (py+ppy)/2);
+      }
+      const col = COLORS[s.hue];
+      ctx.strokeStyle = `${col},${s.alpha})`;
+      ctx.lineWidth = s.width;
+      ctx.shadowColor = `${col},0.6)`;
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+    }
+
+    // ── Inner bright core
+    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
+    coreGrad.addColorStop(0, "rgba(180,230,255,0.6)");
+    coreGrad.addColorStop(0.5,"rgba(80,160,255,0.2)");
+    coreGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+    ctx.fillStyle = coreGrad;
+    ctx.shadowBlur = 0;
+    ctx.fill();
+
+    ctx.restore();
+
+    // ── Outer rim glow
+    const rimGrad = ctx.createRadialGradient(cx, cy, R-4, cx, cy, R+8);
+    rimGrad.addColorStop(0,  "rgba(0,212,255,0.2)");
+    rimGrad.addColorStop(0.5,"rgba(140,60,255,0.15)");
+    rimGrad.addColorStop(1,  "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(cx, cy, R+4, 0, Math.PI * 2);
+    ctx.fillStyle = rimGrad;
+    ctx.fill();
+
+    // ── Sphere highlight
+    const hlGrad = ctx.createRadialGradient(cx-30, cy-40, 5, cx-20, cy-30, R*0.7);
+    hlGrad.addColorStop(0, "rgba(200,240,255,0.12)");
+    hlGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = hlGrad;
+    ctx.fill();
+
+    t += 0.016;
+    requestAnimationFrame(drawGlobe);
+  }
+
+  drawGlobe();
+})();
+
+// ─── PHOTO LOADER ────────────────────────────────────────────────────────
+function loadPhoto(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById("diyan-img");
+    img.src = e.target.result;
+    img.style.display = "block";
+    const fb = document.getElementById("face-fallback");
+    if (fb) fb.style.display = "none";
+    localStorage.setItem("diyan_photo", e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+// Restore saved photo
+const savedPhoto = localStorage.getItem("diyan_photo");
+if (savedPhoto) {
+  const img = document.getElementById("diyan-img");
+  img.src = savedPhoto;
+}
+</script>
+
+</body>
+</html>
