@@ -210,8 +210,8 @@ body::before {
 .face-frame img {
   width:100%; height:140px;
   object-fit:cover;
-  object-position:50% 35%;  /* full face visible */
-  transform:scale(0.9);
+  object-position:50% 20%;  /* ponytail: center on face */
+  transform:scale(1.05);
 }
 
 /* Multi-layer rotating rings around face */
@@ -268,13 +268,6 @@ body::before {
   background:rgba(0,50,80,0.3);
 }
 .stat-chip.gold { border-color:rgba(245,166,35,0.35); color:var(--gold); }
-
-.face-frame video {
-  width:100%; height:140px;
-  object-fit:cover;
-  object-position:50% 35%;
-  transform:scale(0.9);
-}
 
 /* ─── PLASMA GLOBE ──────────────────────────────────────────────────────── */
 .globe-section {
@@ -513,8 +506,7 @@ body::before {
     <div class="face-ring-2"></div>
     <div class="face-ring-3"></div>
     <div class="face-frame">
-      <video id="diyan-video" autoplay muted loop playsinline><source src="diyan_face.mp4" type="video/mp4"></video>
-      <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI" style="display:none"
+      <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI"
            onerror="this.style.display='none';document.getElementById('face-fallback').style.display='flex'"/>
     </div>
     <!-- fallback if image missing -->
@@ -569,9 +561,9 @@ body::before {
 
 <!-- ── CONFIG (NIM API KEY) ───────────────────────────────────────────── -->
 <div class="config-row" style="margin-top:6px;">
-  <input class="config-input" id="nim-key" type="password"
-    placeholder="NVIDIA NIM API KEY (stored locally)"
-    value="">
+  <input class="config-input" id="nim-key" type="text" readonly
+    placeholder="AI READY — Pollinations.ai active (no key needed)"
+    value="" style="opacity:0.5;cursor:default;">
 </div>
 
 <!-- ── RESPONSE AREA ──────────────────────────────────────────────────── -->
@@ -589,21 +581,17 @@ body::before {
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────
-const NIM_BASE = "https://integrate.api.nvidia.com/v1";
-const NIM_MODEL = "meta/llama-3.1-70b-instruct";
-let nimKey = localStorage.getItem("diyan_nim_key") || "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";
+const AI_URL = "https://text.pollinations.ai"; // free, CORS-enabled, no key needed
+let nimKey = "pollinations";
 let sessionCount = 0;
 let isListening = false;
 let isSpeaking = false;
 let recognition = null;
 
-// Restore API key
+// Pollinations.ai — no key needed
 const nimInput = document.getElementById("nim-key");
-if (nimKey) nimInput.value = nimKey;
-nimInput.addEventListener("change", () => {
-  nimKey = nimInput.value.trim();
-  localStorage.setItem("diyan_nim_key", nimKey);
-});
+nimInput.placeholder = "AI READY — Pollinations.ai active (no key needed)";
+nimInput.style.opacity = "0.5";
 
 // ─── CLOCK ───────────────────────────────────────────────────────────────
 function updateClock() {
@@ -666,39 +654,22 @@ function escapeHtml(t) {
   return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// ─── NIM AI ───────────────────────────────────────────────────────────────
+// ─── AI (Pollinations.ai — free, no key, browser CORS OK) ────────────────
 const SYSTEM_PROMPT = `You are DIYAN, a futuristic personal AI assistant created by Ram for his son Diyan (born March 2026 in Coimbatore, India). You have a confident, efficient Iron Man FRIDAY-style personality.
 Ram is a mechanical/piping engineer building a passive income stack: Ghost blog, trading signals, YouTube automation, and fintech tools.
 Be concise, direct, helpful. Start responses with "INITIATING:" for commands or just answer directly. Max 3 sentences unless detail is needed.`;
 
 async function askNIM(userText) {
-  const key = nimKey || nimInput.value.trim();
-  if (!key) {
-    return "NIM API key not set. Enter your key in the field above. Get one free at build.nvidia.com";
-  }
   try {
-    const resp = await fetch(`${NIM_BASE}/chat/completions`, {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":`Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model: NIM_MODEL,
-        messages:[
-          {role:"system", content:SYSTEM_PROMPT},
-          {role:"user",   content:userText}
-        ],
-        temperature:0.7,
-        max_tokens:150,
-      })
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const data = await resp.json();
-    return data.choices[0].message.content.trim();
+    const fullPrompt = SYSTEM_PROMPT + "\n\nUser: " + userText + "\nDIYAN:";
+    const url = AI_URL + "/" + encodeURIComponent(fullPrompt) + "?model=openai&seed=42";
+    const resp = await fetch(url, { method: "GET", cache: "no-cache" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const text = (await resp.text()).trim();
+    return text || "SYSTEMS NOMINAL.";
   } catch(e) {
-    console.error("NIM error:", e);
-    return `DIYAN AI error: ${e.message}. Check NIM API key.`;
+    console.error("AI error:", e);
+    return "DIYAN OFFLINE: " + e.message + ". Check network.";
   }
 }
 
@@ -760,18 +731,22 @@ function speakText(text) {
   window.speechSynthesis.cancel();
 
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-IN";
-  utter.rate = 1.0;
-  utter.pitch = 1.1;
+  utter.lang = "en-US";
+  utter.rate = 0.95;
+  utter.pitch = 1.6;  // lady voice — higher pitch
 
-  // Try to get a suitable voice
+  // Prefer female voice
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.lang.startsWith("en-IN") ||
-    v.name.includes("India") ||
-    v.name.includes("Ravi") ||
-    v.name.includes("Heera")
-  ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
+  const preferred =
+    voices.find(v => v.name === "Google UK English Female") ||
+    voices.find(v => v.name === "Samantha") ||
+    voices.find(v => v.name === "Karen") ||
+    voices.find(v => v.name === "Zira") ||
+    voices.find(v => v.name.includes("Female")) ||
+    voices.find(v => v.name.includes("female")) ||
+    voices.find(v => v.lang.startsWith("en-GB")) ||
+    voices.find(v => v.lang.startsWith("en")) ||
+    voices[0];
   if (preferred) utter.voice = preferred;
 
   utter.onstart = () => {
@@ -787,11 +762,12 @@ function speakText(text) {
   utter.onerror = (e) => {
     console.error("TTS error:", e);
     isSpeaking = false;
-    setStatus("✗","TTS ERROR — RESPONSE SHOWN ABOVE","ERROR");
+    setStatus("✗","VOICE ERROR — RESPONSE SHOWN ABOVE","ERROR");
     setBtn("");
   };
 
-  window.speechSynthesis.speak(utter);
+  // Small timeout fixes Android Chrome voice not firing after async callbacks
+  setTimeout(() => { window.speechSynthesis.speak(utter); }, 100);
 }
 
 // Load voices (Chrome needs this)
@@ -974,17 +950,6 @@ if (savedPhoto) {
   const img = document.getElementById("diyan-img");
   img.src = savedPhoto;
 }
-// ─── VIDEO/PHOTO TOGGLE ──────────────────────────────────────────
-(function(){
-  const vid=document.getElementById('diyan-video');
-  const img=document.getElementById('diyan-img');
-  if(!vid)return;
-  function showImg(){vid.style.display='none';img.style.display='block';const s=localStorage.getItem('diyan_photo');if(s&&img.src.length<100){img.src=s;document.getElementById('face-fallback').style.display='none';}}
-  function showVid(){vid.style.display='block';img.style.display='none';}
-  vid.addEventListener('canplay',showVid,{once:true});
-  vid.addEventListener('error',showImg);
-  setTimeout(()=>{if(vid.readyState<2)showImg();},1500);
-})();
 </script>
 
 </body>
