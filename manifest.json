@@ -1,0 +1,8 @@
+{
+  "name": "DIYAN — Personal AI",
+  "short_name": "DIYAN",
+  "start_url": "./diyan_hud.html",
+  "display": "standalone",
+  "background_color": "#000814",
+  "theme_color": "#00d4ff"
+}
