@@ -210,8 +210,15 @@ body::before {
 .face-frame img {
   width:100%; height:140px;
   object-fit:cover;
-  object-position:50% 20%;  /* ponytail: center on face */
-  transform:scale(1.05);
+  object-position:50% 35%;  /* full face visible */
+  transform:scale(0.9);
+}
+.face-frame video {
+  width:100%; height:140px;
+  object-fit:cover;
+  object-position:50% 35%;
+  transform:scale(0.9);
+  display:block;
 }
 
 /* Multi-layer rotating rings around face */
@@ -506,7 +513,10 @@ body::before {
     <div class="face-ring-2"></div>
     <div class="face-ring-3"></div>
     <div class="face-frame">
-      <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI"
+      <video id="diyan-video" autoplay muted loop playsinline>
+        <source src="diyan_face.mp4" type="video/mp4">
+      </video>
+      <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI" style="display:none"
            onerror="this.style.display='none';document.getElementById('face-fallback').style.display='flex'"/>
     </div>
     <!-- fallback if image missing -->
@@ -661,15 +671,30 @@ Be concise, direct, helpful. Start responses with "INITIATING:" for commands or 
 
 async function askNIM(userText) {
   try {
-    const fullPrompt = SYSTEM_PROMPT + "\n\nUser: " + userText + "\nDIYAN:";
-    const url = AI_URL + "/" + encodeURIComponent(fullPrompt) + "?model=openai&seed=42";
-    const resp = await fetch(url, { method: "GET", cache: "no-cache" });
+    const resp = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userText }
+        ],
+        temperature: 0.7,
+        seed: 42
+      })
+    });
     if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const text = (await resp.text()).trim();
-    return text || "SYSTEMS NOMINAL.";
+    const data = await resp.json();
+    return (data.choices[0].message.content || "").trim() || "SYSTEMS NOMINAL.";
   } catch(e) {
     console.error("AI error:", e);
-    return "DIYAN OFFLINE: " + e.message + ". Check network.";
+    // Fallback: GET endpoint
+    try {
+      const r2 = await fetch("https://text.pollinations.ai/" + encodeURIComponent(userText) + "?model=openai");
+      if (r2.ok) return (await r2.text()).trim();
+    } catch(_) {}
+    return "DIYAN OFFLINE: " + e.message;
   }
 }
 
@@ -944,12 +969,37 @@ function loadPhoto(evt) {
   };
   reader.readAsDataURL(file);
 }
-// Restore saved photo
+// Restore saved photo (only used when video unavailable)
 const savedPhoto = localStorage.getItem("diyan_photo");
 if (savedPhoto) {
   const img = document.getElementById("diyan-img");
   img.src = savedPhoto;
 }
+
+// ─── VIDEO/PHOTO TOGGLE ──────────────────────────────────────────────────
+(function(){
+  const vid = document.getElementById('diyan-video');
+  const img = document.getElementById('diyan-img');
+  if (!vid) return;
+  function showImg() {
+    vid.style.display = 'none';
+    img.style.display = 'block';
+    const s = localStorage.getItem('diyan_photo');
+    if (s && img.src.length < 100) {
+      img.src = s;
+      const fb = document.getElementById('face-fallback');
+      if (fb) fb.style.display = 'none';
+    }
+  }
+  function showVid() {
+    vid.style.display = 'block';
+    img.style.display = 'none';
+  }
+  vid.addEventListener('canplay', showVid, { once: true });
+  vid.addEventListener('error', showImg);
+  // Fallback: if video hasn't loaded in 2s, show photo
+  setTimeout(() => { if (vid.readyState < 2) showImg(); }, 2000);
+})();
 </script>
 
 </body>
