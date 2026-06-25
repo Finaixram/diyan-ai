@@ -513,7 +513,7 @@ body::before {
     <div class="face-ring-2"></div>
     <div class="face-ring-3"></div>
     <div class="face-frame">
-      <video id="diyan-video" autoplay muted loop playsinline>
+      <video id="diyan-video" autoplay muted playsinline>
         <source src="diyan_face.mp4" type="video/mp4">
       </video>
       <img id="diyan-img" src="diyan_face.png" alt="DIYAN AI" style="display:none"
@@ -665,9 +665,7 @@ function escapeHtml(t) {
 }
 
 // ─── AI (Pollinations.ai — free, no key, browser CORS OK) ────────────────
-const SYSTEM_PROMPT = `You are DIYAN, a futuristic personal AI assistant created by Ram for his son Diyan (born March 2026 in Coimbatore, India). You have a confident, efficient Iron Man FRIDAY-style personality.
-Ram is a mechanical/piping engineer building a passive income stack: Ghost blog, trading signals, YouTube automation, and fintech tools.
-Be concise, direct, helpful. Start responses with "INITIATING:" for commands or just answer directly. Max 3 sentences unless detail is needed.`;
+const SYSTEM_PROMPT = `You are DIYAN, Iron Man FRIDAY-style AI for Ram (engineer, Coimbatore). Be ultra-concise — max 2 sentences. Direct answers only.`;
 
 async function askNIM(userText) {
   try {
@@ -675,12 +673,13 @@ async function askNIM(userText) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai",
+        model: "mistral",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText }
         ],
-        temperature: 0.7,
+        temperature: 0.6,
+        max_tokens: 70,
         seed: 42
       })
     });
@@ -757,8 +756,8 @@ function speakText(text) {
 
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = "en-US";
-  utter.rate = 0.95;
-  utter.pitch = 1.6;  // lady voice — higher pitch
+  utter.rate = 1.1;
+  utter.pitch = 2.0;  // baby voice — max pitch
 
   // Prefer female voice
   const voices = window.speechSynthesis.getVoices();
@@ -999,6 +998,13 @@ if (savedPhoto) {
   vid.addEventListener('error', showImg);
   // Fallback: if video hasn't loaded in 2s, show photo
   setTimeout(() => { if (vid.readyState < 2) showImg(); }, 2000);
+  // Smooth loop — seek back 0.15s before end to avoid hard-cut glitch
+  vid.addEventListener('timeupdate', () => {
+    if (vid.duration && vid.currentTime >= vid.duration - 0.15) {
+      vid.currentTime = 0;
+      vid.play().catch(() => {});
+    }
+  });
 })();
 </script>
 
