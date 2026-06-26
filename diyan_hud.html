@@ -567,14 +567,19 @@ body::before {
 <!-- ── STATUS BAR ─────────────────────────────────────────────────────── -->
 <div class="status-bar">
   <span class="status-icon" id="status-icon">◉</span>
-  <span class="status-text" id="status-text">DIYAN READY — PRESS MIC TO SPEAK</span>
+  <span class="status-text" id="status-text">DIYAN READY — MIC TO SPEAK · TYPE TO CHAT</span>
 </div>
 
-<!-- ── CONFIG (NIM API KEY) ───────────────────────────────────────────── -->
-<div class="config-row" style="margin-top:6px;">
-  <input class="config-input" id="nim-key" type="text" readonly
-    placeholder="AI READY — Pollinations.ai active (no key needed)"
-    value="" style="opacity:0.5;cursor:default;">
+<!-- ── TYPE INPUT ROW ──────────────────────────────────────────────────── -->
+<div class="config-row" style="margin-top:6px;" id="type-row">
+  <input class="config-input" id="type-input" type="text"
+    placeholder="TYPE A MESSAGE — PRESS ENTER OR TAP ➤"
+    style="flex:1;font-size:11px;" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button onclick="sendTyped()" style="
+    background:rgba(0,212,255,0.12); border:1px solid rgba(0,212,255,0.4);
+    color:var(--arc); font-size:16px; padding:0 10px; border-radius:2px;
+    cursor:pointer; line-height:1; flex-shrink:0;
+  ">➤</button>
 </div>
 
 <!-- ── RESPONSE AREA ──────────────────────────────────────────────────── -->
@@ -880,13 +885,36 @@ function toggleSpeak() {
   }
 }
 
-// ─── KEYBOARD SHORTCUT (F9) ───────────────────────────────────────────────
+// ─── TYPED INPUT ──────────────────────────────────────────────────────────
+async function sendTyped() {
+  const input = document.getElementById("type-input");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  input.disabled = true;
+
+  setStatus("◈", `PROCESSING: "${text.slice(0,40)}"`, "THINKING");
+  const response = await askNIM(text);
+  sessionCount++;
+  document.getElementById("db-session").textContent = sessionCount;
+  addResponse(text, response);
+  saveMemory(text, response);
+  speakText(response);  // also speaks the typed reply
+
+  input.disabled = false;
+  input.focus();
+}
+
+// ─── KEYBOARD SHORTCUT (F9 = mic, Enter in text box = send) ──────────────
 document.addEventListener("keydown", (e) => {
   if (e.key === "F9") { e.preventDefault(); toggleSpeak(); }
 });
+document.getElementById("type-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); sendTyped(); }
+});
 
 // ─── INIT STATUS ─────────────────────────────────────────────────────────
-setStatus("◉","DIYAN SYSTEMS ONLINE — PRESS MIC OR F9 TO SPEAK","READY");
+setStatus("◉","DIYAN ONLINE — MIC TO SPEAK · TYPE TO CHAT","READY");
 
 // ─── PLASMA GLOBE ─────────────────────────────────────────────────────────
 (function initGlobe() {
